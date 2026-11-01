@@ -15,6 +15,8 @@ from google.genai import types, errors
 from pathlib import Path
 import chromadb
 from uuid import uuid4
+import secrets
+from fastapi import Depends, Header
 
 
 # Load GEMINI_API_KEY from .env
@@ -45,6 +47,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def require_demo_access(
+    x_demo_key: str | None = Header(default=None)
+):
+    # Keep local development unchanged
+    if os.getenv("RENDER") != "true":
+        return
+
+    # Password configured privately in Render
+    expected = os.getenv("DOCUCHAT_DEMO_KEY")
+
+    # Fail safely if no password was configured
+    if not expected:
+        raise HTTPException(
+            status_code=503,
+            detail="Demo access not configured"
+        )
+
+    # Reject requests without the correct password
+    if not x_demo_key or not secrets.compare_digest(
+        x_demo_key, expected
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Demo access required"
+        )
 
 # Store the database inside our backend folder
 BASE_DIR = Path(__file__).resolve().parent
@@ -108,7 +135,7 @@ class ChatRequest(BaseModel):
     message: str
     document_id: str
 
-@app.post("/chat")
+@app.post("/chat", dependencies=[Depends(require_demo_access)])
 def chat(request: ChatRequest):
 
     
@@ -217,7 +244,7 @@ def chat(request: ChatRequest):
 
 
 # STEP 2: Upload PDF and create embeddings
-@app.post("/upload")
+@app.post("/upload", dependencies=[Depends(require_demo_access)])
 async def upload_pdf(file: UploadFile = File(...)):
 
     max_size = 5 * 1024 * 1024
@@ -367,7 +394,7 @@ class SearchRequest(BaseModel):
     question: str
     document_id: str
 
-@app.post("/search")
+@app.post("/search", dependencies=[Depends(require_demo_access)])
 def search(request: SearchRequest):
 
     question = request.question.strip()
@@ -387,7 +414,7 @@ def search(request: SearchRequest):
 
 
 
-@app.get("/documents")
+@app.get("/documents", dependencies=[Depends(require_demo_access)])
 def list_documents():
 
     # Fetch metadata from stored chunks
@@ -422,8 +449,10 @@ def list_documents():
         "documents": list(documents.values())
     }
 
-
-@app.delete("/documents/{document_id}")
+@app.delete(
+    "/documents/{document_id}",
+    dependencies=[Depends(require_demo_access)]
+)
 def delete_document(document_id: str):
 
     # Find chunks belonging to this PDF
@@ -447,3 +476,8 @@ def delete_document(document_id: str):
         "message": "Document deleted",
         "document_id": document_id
     }
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
