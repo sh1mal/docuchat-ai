@@ -213,13 +213,6 @@ async def upload_pdf(file: UploadFile = File(...)):
     if len(chunks) > 250:
         raise HTTPException(413, "Document too long for demo")
 
-    # Convert all chunks into numerical vectors
-    embeddings = get_model().encode(
-        chunks,
-        normalize_embeddings=True,
-        convert_to_numpy=True
-    )
-
     
     # Generate embeddings for all text chunks
     embeddings = get_model().encode(

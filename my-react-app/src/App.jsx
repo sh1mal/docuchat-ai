@@ -58,11 +58,12 @@ function Chat() {
 
       const data = await response.json();
 
-      await loadDocuments(data.document_id);
-setMessages([]);
       if (!response.ok) {
         throw new Error(data.detail || "Upload failed");
       }
+
+      await loadDocuments(data.document_id);
+      setMessages([]);
 
       // Save document information
       setPdfInfo(data);
