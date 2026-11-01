@@ -1,0 +1,489 @@
+
+/* ========================================
+   1. NAVIGATION
+======================================== */
+
+.navbar {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  padding: 20px;
+  border-bottom: 1px solid #333;
+}
+
+.navbar a {
+  color: #a78bfa;
+  text-decoration: none;
+}
+
+.navbar a:hover {
+  color: #c4b5fd;
+}
+
+
+/* ========================================
+   2. MAIN LAYOUT
+======================================== */
+
+.chat-app {
+  max-width: 850px;
+  margin: 30px auto;
+  padding: 20px;
+  text-align: left;
+}
+
+.chat-app h1 {
+  margin-bottom: 5px;
+}
+
+.chat-app > p {
+  color: #aaa;
+}
+
+
+/* ========================================
+   3. SHARED BUTTON STYLES
+======================================== */
+
+button {
+  cursor: pointer;
+  font: inherit;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button:focus-visible {
+  outline: 2px solid #a5b4fc;
+  outline-offset: 2px;
+}
+
+
+/* ========================================
+   4. UPLOAD DOCUMENT
+======================================== */
+
+.upload-box,
+.document-library {
+  background: #24242e;
+  border: 1px solid #343443;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+}
+
+.upload-box h2,
+.upload-box h3,
+.document-library h3 {
+  margin: 0 0 12px;
+}
+
+.upload-box form {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+/* File picker */
+
+.upload-box input[type="file"] {
+  color: #c4c4d1;
+  font-size: 13px;
+  max-width: 100%;
+}
+
+.upload-box input[type="file"]::file-selector-button {
+  background: #30303d;
+  color: #e5e5f0;
+  border: 1px solid #555568;
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin-right: 12px;
+  cursor: pointer;
+}
+
+.upload-box input[type="file"]::file-selector-button:hover {
+  background: #424255;
+}
+
+/* Upload PDF button */
+
+.upload-box form button {
+  background: #5145c7;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 11px 22px;
+  font-weight: 600;
+}
+
+.upload-box form button:hover:not(:disabled) {
+  background: #6357e1;
+}
+
+
+/* ========================================
+   5. SAVED DOCUMENTS
+======================================== */
+
+.document-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #3b3b48;
+}
+
+.document-item:last-child {
+  border-bottom: none;
+}
+
+/* Document selection */
+
+.document-select {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 16px;
+  text-align: left;
+  overflow-wrap: anywhere;
+
+  background: #30303b;
+  color: #dedee9;
+  border: 1px solid #48485c;
+  border-radius: 10px;
+}
+
+.document-select:hover {
+  background: #3a3a4b;
+}
+
+/* Selected document */
+
+.document-select[aria-pressed="true"] {
+  background: #33315b;
+  border-color: #817cf4;
+  color: #c9c6ff;
+  font-weight: 600;
+}
+
+/* Delete button */
+
+.document-item > button:last-child {
+  padding: 11px 18px;
+  background: #493038;
+  color: #ffb2bc;
+  border: 1px solid #74424d;
+  border-radius: 9px;
+}
+
+.document-item > button:last-child:hover {
+  background: #643440;
+}
+
+
+/* ========================================
+   6. CHAT TOOLBAR BUTTONS
+======================================== */
+
+.chat-app > button {
+  background: #30303d;
+  color: #e5e5f0;
+  border: 1px solid #505062;
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin: 8px 8px 12px 0;
+}
+
+.chat-app > button:hover:not(:disabled) {
+  background: #424255;
+}
+
+
+/* ========================================
+   7. CHAT WINDOW
+======================================== */
+
+.chat-box {
+  height: 650px;
+  display: flex;
+  flex-direction: column;
+
+  border: 1px solid #383844;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 20px;
+}
+
+.empty-chat {
+  margin: auto;
+  text-align: center;
+  color: #999;
+}
+
+
+/* ========================================
+   8. CHAT BUBBLES
+======================================== */
+
+.bubble {
+  padding: 12px 16px;
+  border-radius: 12px;
+  max-width: 80%;
+  overflow-wrap: anywhere;
+}
+
+.bubble.user {
+  align-self: flex-end;
+  background: #3730a3;
+  color: white;
+}
+
+.bubble.bot {
+  align-self: flex-start;
+  background: #303039;
+}
+
+.bubble.user p {
+  margin: 8px 0;
+  white-space: pre-wrap;
+}
+
+.bubble small {
+  color: #a5b4fc;
+}
+
+
+/* ========================================
+   9. MESSAGE INPUT AND SEND BUTTON
+======================================== */
+
+.input-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px;
+  border-top: 1px solid #383844;
+  flex-shrink: 0;
+}
+
+.input-area input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px;
+
+  border: 1px solid #555568;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #20202a;
+  font-size: 14px;
+}
+
+/* Send button */
+
+.input-area button {
+  background: #5145c7;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 20px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.input-area button:hover:not(:disabled) {
+  background: #6357e1;
+}
+
+
+/* ========================================
+   10. STATUS MESSAGES
+======================================== */
+
+.success {
+  color: #4ade80;
+}
+
+.error {
+  color: #f87171;
+}
+
+
+/* ========================================
+   11. SOURCE CITATIONS
+======================================== */
+
+.sources {
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.sources details {
+  margin-top: 10px;
+  padding: 12px;
+  background: #24242f;
+  border: 1px solid #383848;
+  border-radius: 10px;
+}
+
+.sources summary {
+  cursor: pointer;
+  color: #a5b4fc;
+  font-weight: 500;
+}
+
+/* Compact, scrollable source text */
+
+.sources details p {
+  max-height: 80px;
+  overflow-y: auto;
+
+  font-size: 12px;
+  line-height: 1.5;
+  padding-right: 8px;
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+
+/* ========================================
+   12. MARKDOWN RESPONSES
+======================================== */
+
+.markdown-content {
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.markdown-content p {
+  margin: 0 0 12px;
+}
+
+.markdown-content p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3 {
+  margin: 16px 0 8px;
+  line-height: 1.3;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  padding-left: 24px;
+  margin: 10px 0;
+}
+
+.markdown-content li {
+  margin-bottom: 6px;
+}
+
+.markdown-content strong {
+  font-weight: 700;
+}
+
+.markdown-content pre {
+  overflow-x: auto;
+  padding: 12px;
+  background: #171720;
+  border-radius: 8px;
+}
+
+.markdown-content code {
+  overflow-wrap: anywhere;
+}
+
+
+/* ========================================
+   13. DARK SCROLLBARS
+======================================== */
+
+.messages,
+.sources details p {
+  scrollbar-width: thin;
+  scrollbar-color: #626278 #1c1c25;
+}
+
+.messages::-webkit-scrollbar,
+.sources details p::-webkit-scrollbar {
+  width: 8px;
+}
+
+.messages::-webkit-scrollbar-track,
+.sources details p::-webkit-scrollbar-track {
+  background: #1c1c25;
+}
+
+.messages::-webkit-scrollbar-thumb,
+.sources details p::-webkit-scrollbar-thumb {
+  background: #626278;
+  border-radius: 8px;
+}
+
+
+/* ========================================
+   14. MOBILE RESPONSIVE
+======================================== */
+
+@media (max-width: 600px) {
+  .chat-app {
+    padding: 12px;
+    margin: 12px auto;
+  }
+
+  .navbar {
+    gap: 18px;
+    padding: 15px;
+  }
+
+  .upload-box,
+  .document-library {
+    padding: 14px;
+  }
+
+  .document-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .chat-box {
+    height: 70vh;
+    min-height: 400px;
+  }
+
+  .messages {
+    padding: 12px;
+  }
+
+  .bubble {
+    max-width: 94%;
+  }
+
+  .input-area {
+    padding: 10px;
+  }
+
+  .input-area button {
+    padding: 12px 14px;
+  }
+}
