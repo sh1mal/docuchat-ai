@@ -6,9 +6,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
-
-
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV ? "http://127.0.0.1:8000" : "");
 
 function Home() {
   return <h1>Welcome to DocuChat AI</h1>;
@@ -153,6 +152,7 @@ function Chat() {
  
 
 async function loadDocuments(preferredId = "") {
+  if (!API_BASE_URL) return;
   const response = await fetch(
     `${API_BASE_URL}/documents`
   );
