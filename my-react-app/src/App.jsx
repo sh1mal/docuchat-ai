@@ -5,6 +5,11 @@ import "./App.css";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+
+
+
 function Home() {
   return <h1>Welcome to DocuChat AI</h1>;
 }
@@ -49,7 +54,7 @@ function Chat() {
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:8000/upload",
+        `${API_BASE_URL}/upload`,
         {
           method: "POST",
           body: formData
@@ -99,7 +104,7 @@ function Chat() {
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:8000/chat",
+        `${API_BASE_URL}/chat`,
         {
           method: "POST",
           headers: {
@@ -149,7 +154,7 @@ function Chat() {
 
 async function loadDocuments(preferredId = "") {
   const response = await fetch(
-    "http://127.0.0.1:8000/documents"
+    `${API_BASE_URL}/documents`
   );
 
   if (!response.ok) {
@@ -197,7 +202,7 @@ async function handleDeleteDocument(documentId) {
 
   try {
     const response = await fetch(
-      `http://127.0.0.1:8000/documents/${documentId}`,
+      `${API_BASE_URL}/documents/${documentId}`,
       { method: "DELETE" }
     );
 

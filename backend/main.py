@@ -21,12 +21,25 @@ from uuid import uuid4
 load_dotenv()
 app = FastAPI()
 
+app = FastAPI()
+
+# Allowed frontend URLs
+allowed_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+# Add the deployed frontend URL when available
+frontend_origin = os.getenv("FRONTEND_ORIGIN")
+
+if frontend_origin:
+    allowed_origins.append(frontend_origin.rstrip("/"))
+
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173"
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -35,7 +48,13 @@ app.add_middleware(
 
 # Store the database inside our backend folder
 BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = BASE_DIR / "chroma_db"
+
+DB_PATH = Path(
+    os.getenv(
+        "CHROMA_DB_PATH",
+        str(BASE_DIR / "chroma_db")
+    )
+)
 
 # Create or open an existing persistent database
 chroma_client = chromadb.PersistentClient(
@@ -104,6 +123,27 @@ def chat(request: ChatRequest):
     question,
     request.document_id
 )
+
+    matches = retrieve_matches(
+            question,
+            request.document_id
+        )
+
+    # Print actual similarity scores
+    for match in matches:
+        print(
+            "Chunk:", match["chunk"],
+            "Similarity:", match["score"]
+        )
+
+    # Temporarily disable similarity filtering
+    relevant_matches = matches
+
+    if not relevant_matches:
+        return {
+            "reply": "I couldn't find relevant information in the selected PDF.",
+            "sources": []
+        }
     # Combine the retrieved chunks into context
     context = "\n\n".join(
         f"[Chunk {m['chunk']}]\n{m['text']}"
@@ -143,6 +183,11 @@ def chat(request: ChatRequest):
                     "If the answer is not present, say so."
                     "If the question is unclear or ambiguous, ask the user "
                     "to clarify instead of assuming what they mean."
+                    "Give concise and direct answers. "
+                    "If the user asks for a person's name, provide only the name "
+                    "supported by the document. "
+                    "Do not include unrelated information or invent missing details. "
+                    "If the excerpts do not contain the answer, say so."
                 )
             )
         )
