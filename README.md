@@ -7,7 +7,7 @@ A React + FastAPI PDF chatbot with hosted Gemini embeddings, document-filtered s
 - Upload multiple text PDFs and select a document to ask questions about it.
 - View and delete documents from a shared demo library.
 - Retrieve only chunks belonging to the selected document.
-- Display retrieved text, page numbers and chunk references alongside Markdown answers.
+- Display cited excerpts with page/chunk references alongside Markdown answers. Other retrieved excerpts are collapsed separately as “Other retrieved context.” Citation IDs/pages are checked against the retrieved results; this does not independently verify factual support.
 - Protect every data endpoint with a server-side shared demo key. The frontend keeps it in page memory only.
 - Store extracted text, metadata and 768-dimensional embeddings in Qdrant Cloud, outside Render's temporary filesystem.
 

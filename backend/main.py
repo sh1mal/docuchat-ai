@@ -17,6 +17,7 @@ from starlette.responses import JSONResponse
 load_dotenv(Path(__file__).with_name(".env"))
 
 from llm import DIMENSIONS, embed_texts, generate_answer
+from citations import cited_response
 from storage import get_store
 
 app = FastAPI(title="DocuChat AI", version="2.0.0")
@@ -198,8 +199,9 @@ def search(request: SearchRequest):
 def chat(request: ChatRequest):
     matches = retrieve_matches(request.message, request.document_id)
     if not matches:
-        return {"reply": "I couldn't find information in the selected PDF.", "sources": []}
-    return {"reply": generate_answer(request.message.strip(), matches), "sources": matches}
+        return {"reply": "I couldn't find information in the selected PDF.", "sources": [],
+                "other_context": [], "citation_warning": ""}
+    return cited_response(generate_answer(request.message.strip(), matches), matches)
 
 
 @app.get("/documents", dependencies=protected)

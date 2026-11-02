@@ -92,7 +92,9 @@ class APITests(unittest.TestCase):
         self.assertEqual(first_chat.status_code, 200, first_chat.text)
         self.assertTrue(first_chat.json()["sources"])
         self.assertEqual({s["filename"] for s in first_chat.json()["sources"]}, {"alpha.pdf"})
-        self.assertEqual({s["page"] for s in first_chat.json()["sources"]}, {1, 2})
+        self.assertEqual({s["page"] for s in first_chat.json()["sources"]}, {1})
+        self.assertEqual({s["page"] for s in first_chat.json()["other_context"]}, {2})
+        self.assertEqual(first_chat.json()["citation_warning"], "")
         self.assertIn("[Chunk", first_chat.json()["reply"])
         self.assertTrue(all("Beta" not in s["text"] for s in first_chat.json()["sources"]))
         beta_search = self.client.post("/search", headers=self.headers,
@@ -123,6 +125,19 @@ class APITests(unittest.TestCase):
                     self.assertEqual(response.status_code, 401, response.text)
         self.assertEqual(self.client.get("/health").json(), {"status": "ok"})
         self.embed_mock.assert_not_called()
+
+    def test_chat_rejects_unretrieved_citation_without_claiming_context_as_sources(self):
+        uploaded = self.upload().json()
+        self.answer_mock.side_effect = None
+        self.answer_mock.return_value = "Alex [Chunk 999, page 1]"
+        response = self.client.post("/chat", headers=self.headers,
+                                    json={"message": "Who?", "document_id": uploaded["document_id"]})
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result["reply"], "Alex")
+        self.assertEqual(result["sources"], [])
+        self.assertTrue(result["other_context"])
+        self.assertIn("removed", result["citation_warning"])
 
     def test_missing_server_demo_key_fails_closed(self):
         with patch.dict(os.environ, {"DOCUCHAT_DEMO_KEY": ""}):

@@ -175,7 +175,12 @@ function Chat() {
       body: JSON.stringify({ message: question, document_id: selectedDocumentId }),
     }), data => {
       if (typeof data.reply !== "string") throw new Error("The server returned an invalid answer.");
-      setMessages(prev => [...prev, { role: "bot", text: data.reply, sources: Array.isArray(data.sources) ? data.sources : [] }]);
+      setMessages(prev => [...prev, {
+        role: "bot", text: data.reply,
+        sources: Array.isArray(data.sources) ? data.sources : [],
+        otherContext: Array.isArray(data.other_context) ? data.other_context : [],
+        citationWarning: typeof data.citation_warning === "string" ? data.citation_warning : "",
+      }]);
     });
   }
 
@@ -271,16 +276,29 @@ function Chat() {
             <div key={index} className={`bubble ${msg.role}`}>
               <strong>{msg.role === "user" ? "You" : "AI"}</strong>
               {msg.role === "bot" ? <div className="markdown-content"><ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown></div> : <div>{msg.text}</div>}
+              {msg.citationWarning && <p className="access-note" role="status">{msg.citationWarning}</p>}
               {msg.sources?.length > 0 && showSources && (
                 <div className="sources">
                   <strong>Sources</strong>
                   {msg.sources.map((source, sourceIndex) => (
-                    <details key={sourceIndex} name="source-chunks">
+                    <details key={sourceIndex}>
                       <summary>Chunk {source.chunk}{source.page ? ` · Page ${source.page}` : ""}</summary>
                       <p>{source.text}</p>
                     </details>
                   ))}
                 </div>
+              )}
+              {msg.otherContext?.length > 0 && showSources && (
+                <details className="sources">
+                  <summary>Other retrieved context ({msg.otherContext.length})</summary>
+                  <p className="access-note">These excerpts were retrieved but were not cited in this answer.</p>
+                  {msg.otherContext.map((source, sourceIndex) => (
+                    <details key={sourceIndex}>
+                      <summary>Chunk {source.chunk}{source.page ? ` · Page ${source.page}` : ""}</summary>
+                      <p>{source.text}</p>
+                    </details>
+                  ))}
+                </details>
               )}
             </div>
           ))}
