@@ -1,125 +1,48 @@
-
 # DocuChat AI
 
-A full-stack Retrieval-Augmented Generation (RAG) application that lets users upload PDF documents and ask questions about their contents using Google Gemini.
-
-Built with React, FastAPI, Sentence Transformers, and ChromaDB.
+A React + FastAPI PDF chatbot with hosted Gemini embeddings, document-filtered semantic search, Gemini answers and expandable page/chunk citations. The backend does **not** install or load PyTorch, Sentence Transformers, ChromaDB or NumPy.
 
 ## Features
 
-- Upload and process multiple PDF documents
-- Extract text and split it into overlapping chunks
-- Generate semantic embeddings using Sentence Transformers
-- Store document chunks persistently in ChromaDB
-- Select a document and ask questions about its contents
-- Generate document-grounded answers using Google Gemini
-- Expand source citations to inspect retrieved text
-- View and delete saved documents
-- Render AI responses with Markdown formatting
-- Dark-themed, responsive chat interface
+- Upload multiple text PDFs and select a document to ask questions about it.
+- View and delete documents from a shared demo library.
+- Retrieve only chunks belonging to the selected document.
+- Display cited excerpts with page/chunk references alongside Markdown answers. Other retrieved excerpts are collapsed separately as “Other retrieved context.” Citation IDs/pages are checked against the retrieved results; this does not independently verify factual support.
+- Protect every data endpoint with a server-side shared demo key. The frontend keeps it in page memory only.
+- Store extracted text, metadata and 768-dimensional embeddings in Qdrant Cloud, outside Render's temporary filesystem.
 
-## Tech Stack
-
-| Layer | Technologies |
-|---|---|
-| Frontend | React, JavaScript, Vite, CSS |
-| Backend | Python, FastAPI, Pydantic |
-| LLM | Google Gemini API |
-| Embeddings | Sentence Transformers (all-MiniLM-L6-v2) |
-| Vector Database | ChromaDB |
-| PDF Processing | pypdf |
-| Markdown Rendering | react-markdown, remark-gfm |
-
-## How RAG Works
-
-**Document ingestion**
-
-1. A user uploads a PDF through the React interface.
-2. FastAPI extracts text from the document using pypdf.
-3. The extracted text is divided into overlapping chunks.
-4. Sentence Transformers converts each chunk into an embedding.
-5. ChromaDB stores the chunks, embeddings, and document metadata.
-
-**Question answering**
-
-1. The user selects a PDF and submits a question.
-2. The backend converts the question into an embedding.
-3. ChromaDB retrieves the most similar chunks from the selected PDF.
-4. The retrieved text is supplied to Gemini as context.
-5. Gemini generates an answer based on that context.
-6. React displays the answer and expandable source references.
-
-The retrieval process uses document IDs to prevent chunks from different selected PDFs from being mixed together.
-
-## Project Structure
+## Architecture
 
 ```text
-docuchat-ai/
-├── backend/
-│   ├── main.py
-│   ├── requirements.txt
-│   └── test.py
-├── my-react-app/
-│   ├── public/
-│   ├── src/
-│   │   ├── App.jsx
-│   │   ├── App.css
-│   │   └── main.jsx
-│   ├── package.json
-│   └── vite.config.js
-├── .gitignore
-└── README.md
+React (Render static site)
+  └─ X-Demo-Key → FastAPI (Render Free, one worker)
+       ├─ pypdf subprocess → bounded text chunks
+       ├─ Gemini embedding API → gemini-embedding-001 (768 dimensions)
+       ├─ Qdrant Cloud → document metadata + chunk text + vectors
+       └─ Gemini generation API → answer + retrieved sources
 ```
 
-The local `.env`, virtual environment, ChromaDB database files, and uploaded private documents are excluded from Git.
+Original PDF files and chat history are not retained. The old MiniLM/Chroma vectors are incompatible with Gemini vectors: reupload sample PDFs after migrating.
 
-## Running Locally
+## Run locally
 
-### Prerequisites
-
-- Python and pip
-- Node.js and npm
-- A Google Gemini API key
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/sh1mal/docuchat-ai.git
-cd docuchat-ai
-```
-
-### 2. Set up the backend
+Requires Python 3.14 (tested with 3.14.5), Node.js 22.12+ and npm.
 
 ```bash
 cd backend
-python3 -m venv .venv
+python3.14 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
+cp .env.example .env
 ```
 
-Create a `.env` file inside `backend/`:
-
-```env
-GEMINI_API_KEY=your_gemini_api_key_here
-```
-
-Start FastAPI:
+Edit `backend/.env` privately: set `GEMINI_API_KEY`, a long random `DOCUCHAT_DEMO_KEY`, and Qdrant settings. Use `VECTOR_STORE=sqlite` only for a local experiment without a Qdrant account. Its file survives local restarts if retained, but **SQLite on Render Free is temporary and can be lost on restart, redeploy or spin-down**.
 
 ```bash
-fastapi dev main.py
+uvicorn main:app --host 127.0.0.1 --port 8000 --workers 1
 ```
 
-The backend runs at:
-
-`http://127.0.0.1:8000`
-
-API documentation is available at:
-
-`http://127.0.0.1:8000/docs`
-
-### 3. Set up the frontend
-
-Open a second terminal in the project directory:
+In another terminal:
 
 ```bash
 cd my-react-app
@@ -127,52 +50,50 @@ npm ci
 npm run dev
 ```
 
-Open:
+Open `http://localhost:5173/chat` and enter the demo key. Local API calls require the key too. A missing server key fails closed with 503; a wrong/missing client key returns 401. The public `/health` endpoint reports process liveness only.
 
-`http://localhost:5173`
+## Deploy the existing Render services
 
-### 4. Use the application
+Follow [DEPLOYMENT.md](DEPLOYMENT.md). It includes Qdrant provisioning, exact backend/frontend settings, private environment variables and live acceptance checks. No paid instance or persistent disk is required for this architecture.
 
-1. Navigate to the Chat page.
-2. Upload a PDF containing extractable text.
-3. Select a document from Saved Documents.
-4. Ask a question related to the selected PDF.
-5. Expand the source chunks to inspect the retrieved context.
+## Verify changes
 
-## API Endpoints
+From the repository root after installing backend dependencies:
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| POST | `/upload` | Upload and index a PDF |
-| GET | `/documents` | List indexed PDFs |
-| DELETE | `/documents/{document_id}` | Delete an indexed PDF |
-| POST | `/search` | Retrieve relevant document chunks |
-| POST | `/chat` | Generate an answer using RAG |
+```bash
+backend/.venv/bin/python -B -m unittest discover -s backend/tests -v
+cd my-react-app
+npm ci
+npm run build
+npm run lint
+```
 
-The `/chat` endpoint accepts JSON containing `message` and `document_id`.
+The offline suite tests real PDF extraction and SQLite lifecycles; Gemini and Qdrant HTTP contracts use mocks. Passing it does not establish live API-key/model access, quota availability or Render memory usage.
 
-## Current Limitations
+## API
 
-- The application is designed for local development.
-- PDF uploads are limited to 5 MB.
-- Scanned PDFs without extractable text are not supported.
-- ChromaDB stores extracted text and embeddings, not the original PDF file.
-- Document data is stored on the local machine.
-- Authentication and per-user access control are not yet implemented.
-- Chat history is maintained in React state and is not persisted.
-- Gemini responses may be affected by API availability and rate limits.
+Every data request requires `X-Demo-Key: <private demo key>`.
 
-Do not expose this version as a public multi-user application without implementing authentication, document access controls, and API abuse protection.
+| Method | Route | Purpose |
+| --- | --- | --- |
+| GET | `/health` | Public process liveness |
+| GET | `/documents` | Library metadata and storage notice |
+| POST | `/upload` | Multipart PDF upload (`file`) |
+| POST | `/search` | `{ "question": "...", "document_id": "..." }` |
+| POST | `/chat` | `{ "message": "...", "document_id": "..." }` |
+| DELETE | `/documents/{document_id}` | Remove selected document and its chunks |
 
-## Future Improvements
+## Demo limits and privacy
 
-- User authentication and private document libraries
-- Persistent conversation history
-- More precise page-level citations
-- Improved retrieval relevance filtering
-- Cloud deployment with durable vector storage
-- Automated backend and frontend tests
+- One upload, search, chat or deletion at a time; other operations receive 429 and can be retried. Start exactly one worker.
+- Maximum 5 MB, 50 pages, 200,000 extracted characters and 250 chunks per PDF; 20 documents / 2,000 chunks for the shared library.
+- PDF extraction has a 25-second timeout and, on Linux, a 192 MB subprocess address-space cap. Complex PDFs may be rejected. Scanned PDFs need OCR first.
+- Everyone with the demo key shares the library and can read/delete its documents. This is not individual-user authentication. Use sample/public PDFs.
+- Extracted text is sent to Google for embeddings/answers and stored in Qdrant when configured. Gemini free-tier input/output may be used to improve Google's products.
+- Retrieval can select irrelevant excerpts and Gemini may make mistakes. Expand the sources and verify answers. Displayed sources are retrieved context, not independently verified claims.
+- Render Free can sleep after 15 minutes idle and may take about a minute to wake. Qdrant free clusters can suspend after one week unused and be deleted after four weeks of inactivity.
+- Gemini free quotas vary by project/model. Quota exhaustion returns an error; the code has no paid-provider fallback. Enabling billing or upgrading providers changes costs.
 
-## Author
+Provider references: [Render Free](https://render.com/docs/free), [Qdrant free cluster](https://qdrant.tech/documentation/cloud/create-cluster/), [Gemini pricing](https://ai.google.dev/gemini-api/docs/pricing), [Gemini quotas](https://ai.google.dev/gemini-api/docs/rate-limits).
 
 Developed by [sh1mal](https://github.com/sh1mal).

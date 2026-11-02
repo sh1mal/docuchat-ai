@@ -487,3 +487,17 @@ button:focus-visible {
     padding: 12px 14px;
   }
 }
+
+.demo-access {
+  background: #24242e;
+  border: 1px solid #484268;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+}
+
+.demo-access h3 { margin: 0 0 12px; }
+.demo-access form, .access-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.demo-access input { min-width: 0; max-width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #555568; }
+.demo-access button { padding: 10px 16px; border: 1px solid #605889; border-radius: 8px; background: #383151; color: #eee; }
+.access-note { font-size: 13px; color: #b9b9c7; line-height: 1.5; margin-bottom: 0; }
