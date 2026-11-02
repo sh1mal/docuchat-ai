@@ -17,6 +17,8 @@ Two introductory study PDFs are available in the shared demo library:
 
 Select a document, ask a question, and expand **Sources** to inspect the cited page/chunk excerpts. **Other retrieved context** contains excerpts that were retrieved but not cited. Switch documents to explore the other subject.
 
+![Live DocuChat demo showing the AI study PDF, an answer with a page/chunk citation, and other retrieved context](docs/images/demo-chat.png)
+
 Anyone with the demo key can upload, read and delete documents in this shared library. Use public/sample PDFs only. Sample availability can change because the library is shared. The free backend can take about a minute to wake after inactivity.
 
 ## Features
