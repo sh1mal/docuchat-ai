@@ -2,6 +2,23 @@
 
 A React + FastAPI PDF chatbot with hosted Gemini embeddings, document-filtered semantic search, Gemini answers and expandable page/chunk citations. The backend does **not** install or load PyTorch, Sentence Transformers, ChromaDB or NumPy.
 
+## Live demo
+
+**[Open DocuChat AI](https://docuchat-ai-frontend.onrender.com/chat)**
+
+Enter the demo key shared privately by the project owner to unlock the library. The demo key is separate from the Gemini and Qdrant API keys; provider keys are never needed in the browser. Contact the owner privately for demo access rather than posting keys in a public issue.
+
+Two introductory study PDFs are available in the shared demo library:
+
+| Sample document | Try asking |
+| --- | --- |
+| Machine Learning Fundamentals | What is the difference between precision and recall? |
+| AI and Neural Networks | Does RAG retrain the language model? |
+
+Select a document, ask a question, and expand **Sources** to inspect the cited page/chunk excerpts. **Other retrieved context** contains excerpts that were retrieved but not cited. Switch documents to explore the other subject.
+
+Anyone with the demo key can upload, read and delete documents in this shared library. Use public/sample PDFs only. Sample availability can change because the library is shared. The free backend can take about a minute to wake after inactivity.
+
 ## Features
 
 - Upload multiple text PDFs and select a document to ask questions about it.
