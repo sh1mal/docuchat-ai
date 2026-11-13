@@ -8,7 +8,7 @@ Use Qdrant first for the deployed library. Keep the existing React static site a
 2. Create one **Free** cluster (1 GB RAM / 4 GB disk). Do not choose a paid cluster, upgrade or add a payment method for this demo.
 3. Wait until the cluster is running. Copy its HTTPS endpoint from the cluster overview.
 4. Create/copy a cluster database API key in the Qdrant console. You must complete any credential-creation steps yourself. Give it collection and point read/write permissions for this application's dedicated collection, including collection/index creation if the collection does not exist yet. Keep the key private.
-5. Use `docuchat_gemini_768` as a new dedicated collection. The app creates its 768-dimensional Cosine vector collection and keyword payload indexes (`type`, `document_id`) on first authenticated access. Do not reuse an unrelated collection.
+5. Use `docuchat_gemini_768` as a new dedicated collection. The app creates its 768-dimensional Cosine vector collection and keyword payload indexes (`type`, `document_id`) on first access. Do not reuse an unrelated collection.
 
 The application stores **extracted text**, page/chunk metadata and embeddings in Qdrant, not original PDF files. Qdrant is independent of Render restarts, but its free tier has suspension/deletion rules; it is not a backup guarantee.
 
@@ -23,14 +23,13 @@ Set the following in that service's **Environment** page. Retain your existing p
 | `PYTHON_VERSION` | `3.14.5` (matches local verification) |
 | `GEMINI_API_KEY` | Your private Google AI Studio key, with embedding + generation access |
 | `GEMINI_MODEL` | `gemini-3.5-flash-lite` (existing project model; configurable) |
-| `DOCUCHAT_DEMO_KEY` | Your long random shared demo secret |
 | `FRONTEND_ORIGIN` | `https://docuchat-ai-frontend.onrender.com` (no `/chat`) |
 | `VECTOR_STORE` | `qdrant` |
 | `QDRANT_URL` | The cluster HTTPS endpoint from Qdrant |
 | `QDRANT_API_KEY` | Your private cluster database key |
 | `QDRANT_COLLECTION` | `docuchat_gemini_768` |
 
-`GEMINI_API_KEY`, `DOCUCHAT_DEMO_KEY` and `QDRANT_API_KEY` must **not** be in the frontend environment, repository, chat, build command or start command. Existing `CHROMA_DB_PATH` is unused and can be removed.
+`GEMINI_API_KEY` and `QDRANT_API_KEY` must **not** be in the frontend environment, repository, chat, build command or start command. Existing `CHROMA_DB_PATH` is unused and can be removed.
 
 Backend **Settings**:
 
@@ -60,23 +59,23 @@ If `VECTOR_STORE` is omitted on Render, the app defaults to Qdrant and fails saf
 
 Verify the backend URL against the actual Web Service URL before saving. `VITE_API_URL` is read at build time: changing it requires a frontend rebuild. The rewrite lets opening `/chat` directly work.
 
-The frontend starts locked. Enter `DOCUCHAT_DEMO_KEY` in its password field; it sends `X-Demo-Key` on every API request. The key is kept in page memory, cleared by Lock/reload, and never bundled or put in browser storage.
+The frontend loads the shared document library automatically. No demo key or sign-in is required. All visitors can upload, read, and delete documents. Remove the unused `DOCUCHAT_DEMO_KEY` environment variable from the backend if present. Deploy both backend and frontend changes together. An older backend still requires a key and will reject requests from the updated frontend.
 
 ## 4. Verify the live deployment
 
 1. Open the backend `/health`: expect `{"status":"ok"}`. This checks the process only.
-2. Open `/documents` without a demo key: expect 401. Do not put keys in URLs.
-3. Open https://docuchat-ai-frontend.onrender.com/chat, enter a wrong key and verify the rejection. Enter the correct key and verify the library loads with a Qdrant storage notice.
+2. Open `/documents` without any credentials: expect 200 with the document list and storage notice.
+3. Open https://docuchat-ai-frontend.onrender.com/chat, verify the library loads automatically with a Qdrant storage notice and no key prompt.
 4. Upload two small public/sample text PDFs with different facts. Ask one question about each, switch documents and expand page/chunk sources. Confirm sources belong to the selected PDF.
 5. Delete one test PDF; verify the other remains and still answers questions.
-6. Redeploy/restart only FastAPI. Unlock again and confirm the remaining test PDF still appears from Qdrant. Then delete your test document through the UI if desired.
+6. Redeploy/restart only FastAPI. Reload and confirm the remaining test PDF still appears from Qdrant. Then delete your test document through the UI if desired.
 7. In Render metrics, verify the process stays below the free instance's 512 MB limit during upload and chat. Test an idle/cold start as well.
 
 Do not call the deployment complete based only on `/health` or offline tests. The Qdrant library load, real Gemini embedding/answer calls and restart check are separate acceptance steps.
 
 ## Troubleshooting
 
-- **401:** enter the backend's demo key, without extra spaces. This is not the Gemini or Qdrant key.
+- **401:** the backend is still running the older key-protected version. Deploy the updated backend as well as the frontend.
 - **503 / storage unavailable:** verify `VECTOR_STORE=qdrant`, the cluster is active, endpoint/key, permissions and the dedicated collection's 768/Cosine schema. Qdrant free strict mode requires the payload indexes the app creates.
 - **Gemini rejected request:** check the Google project key and access to `gemini-embedding-001` and the configured generation model. A model available in one project need not be available in another.
 - **429:** API quota was reached or the single operation slot is busy. Retry later; smaller PDFs use fewer embedding tokens. Check AI Studio for your actual quotas.

@@ -48,13 +48,11 @@ class APITests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.db_path = str(Path(self.directory.name) / "test.sqlite3")
-        self.env = patch.dict(os.environ, {"DOCUCHAT_DEMO_KEY": "offline-demo-secret",
-                                          "GEMINI_API_KEY": "offline-gemini-secret",
+        self.env = patch.dict(os.environ, {"GEMINI_API_KEY": "offline-gemini-secret",
                                           "VECTOR_STORE": "sqlite", "SQLITE_PATH": self.db_path})
         self.env.start()
         get_store.cache_clear()
         self.client = TestClient(main.app)
-        self.headers = {"X-Demo-Key": "offline-demo-secret"}
         self.embed_patch = patch("main.embed_texts", side_effect=fake_embeddings)
         self.embed_mock = self.embed_patch.start()
         self.answer_patch = patch("main.generate_answer", side_effect=lambda question, matches:
@@ -70,7 +68,7 @@ class APITests(unittest.TestCase):
         self.directory.cleanup()
 
     def upload(self, filename="alpha.pdf", content=None):
-        return self.client.post("/upload", headers=self.headers,
+        return self.client.post("/upload",
                                 files={"file": (filename, content if content is not None else pdf_bytes("Alpha is blue."),
                                                 "application/pdf")})
 
@@ -81,14 +79,14 @@ class APITests(unittest.TestCase):
         self.assertEqual(second.status_code, 200, second.text)
         first_id, second_id = first.json()["document_id"], second.json()["document_id"]
         self.assertNotEqual(first_id, second_id)
-        library = self.client.get("/documents", headers=self.headers).json()
+        library = self.client.get("/documents").json()
         self.assertEqual(len(library["documents"]), 2)
         self.assertEqual(library["storage"]["mode"], "sqlite")
         self.assertIn("Temporary", library["storage"]["notice"])
         self.assertEqual(len(SQLiteStore(self.db_path).list_documents()), 2)
 
-        first_chat = self.client.post("/chat", headers=self.headers,
-                                     json={"message": "What is Alpha?", "document_id": first_id})
+        first_chat = self.client.post("/chat",
+                                json={"message": "What is Alpha?", "document_id": first_id})
         self.assertEqual(first_chat.status_code, 200, first_chat.text)
         self.assertTrue(first_chat.json()["sources"])
         self.assertEqual({s["filename"] for s in first_chat.json()["sources"]}, {"alpha.pdf"})
@@ -97,41 +95,39 @@ class APITests(unittest.TestCase):
         self.assertEqual(first_chat.json()["citation_warning"], "")
         self.assertIn("[Chunk", first_chat.json()["reply"])
         self.assertTrue(all("Beta" not in s["text"] for s in first_chat.json()["sources"]))
-        beta_search = self.client.post("/search", headers=self.headers,
-                                      json={"question": "What is Beta?", "document_id": second_id})
+        beta_search = self.client.post("/search",
+                                json={"question": "What is Beta?", "document_id": second_id})
         self.assertEqual(beta_search.status_code, 200, beta_search.text)
         self.assertEqual(beta_search.json()["filename"], "beta.pdf")
         self.assertTrue(all("Beta" in s["text"] for s in beta_search.json()["matches"]))
-        deleted = self.client.delete(f"/documents/{first_id}", headers=self.headers)
+        deleted = self.client.delete(f"/documents/{first_id}")
         self.assertEqual(deleted.status_code, 200)
-        remaining = self.client.get("/documents", headers=self.headers).json()["documents"]
+        remaining = self.client.get("/documents").json()["documents"]
         self.assertEqual([d["document_id"] for d in remaining], [second_id])
-        self.assertEqual(self.client.post("/chat", headers=self.headers,
-                                         json={"message": "Alpha?", "document_id": first_id}).status_code, 404)
-        self.assertEqual(self.client.delete(f"/documents/{first_id}", headers=self.headers).status_code, 404)
+        self.assertEqual(self.client.post("/chat",
+                                json={"message": "Alpha?", "document_id": first_id}).status_code, 404)
+        self.assertEqual(self.client.delete(f"/documents/{first_id}").status_code, 404)
         # Exactly one embedding call per question; no duplicate retrieval/API spending.
         self.assertEqual(sum(c.args[1] == "RETRIEVAL_QUERY" for c in self.embed_mock.call_args_list), 2)
 
-    def test_every_data_endpoint_requires_key(self):
-        requests = [("GET", "/documents", {}),
-                    ("POST", "/upload", {"files": {"file": ("test.pdf", pdf_bytes("Text"))}}),
-                    ("POST", "/chat", {"json": {"message": "question", "document_id": "a" * 32}}),
-                    ("POST", "/search", {"json": {"question": "question", "document_id": "a" * 32}}),
-                    ("DELETE", "/documents/" + "a" * 32, {})]
-        for method, url, kwargs in requests:
-            for headers in ({}, {"X-Demo-Key": "wrong"}):
-                with self.subTest(method=method, url=url, headers=headers):
-                    response = self.client.request(method, url, headers=headers, **kwargs)
-                    self.assertEqual(response.status_code, 401, response.text)
+    def test_public_document_lifecycle_needs_no_key(self):
+        uploaded = self.upload()
+        self.assertEqual(uploaded.status_code, 200, uploaded.text)
+        document_id = uploaded.json()["document_id"]
+        self.assertEqual(len(self.client.get("/documents").json()["documents"]), 1)
+        for path, field in (("/chat", "message"), ("/search", "question")):
+            response = self.client.post(path, json={field: "What is Alpha?", "document_id": document_id})
+            self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(self.client.delete(f"/documents/{document_id}").status_code, 200)
+        self.assertEqual(self.client.get("/documents").json()["documents"], [])
         self.assertEqual(self.client.get("/health").json(), {"status": "ok"})
-        self.embed_mock.assert_not_called()
 
     def test_chat_rejects_unretrieved_citation_without_claiming_context_as_sources(self):
         uploaded = self.upload().json()
         self.answer_mock.side_effect = None
         self.answer_mock.return_value = "Alex [Chunk 999, page 1]"
-        response = self.client.post("/chat", headers=self.headers,
-                                    json={"message": "Who?", "document_id": uploaded["document_id"]})
+        response = self.client.post("/chat",
+                                json={"message": "Who?", "document_id": uploaded["document_id"]})
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result["reply"], "Alex")
@@ -139,20 +135,17 @@ class APITests(unittest.TestCase):
         self.assertTrue(result["other_context"])
         self.assertIn("removed", result["citation_warning"])
 
-    def test_missing_server_demo_key_fails_closed(self):
-        with patch.dict(os.environ, {"DOCUCHAT_DEMO_KEY": ""}):
-            response = self.client.get("/documents", headers=self.headers)
-        self.assertEqual(response.status_code, 503)
-        self.assertIn("not configured", response.json()["detail"])
-
-    def test_unauthenticated_upload_is_rejected_before_body_is_read(self):
+    def test_oversized_upload_is_rejected_before_body_is_read(self):
         consumed = []
+
         def oversized_stream():
             consumed.append(True)
             yield b"x" * (7 * 1024 * 1024)
+
         response = self.client.post("/upload", content=oversized_stream(), headers={
-            "Content-Type": "multipart/form-data; boundary=test", "Content-Length": str(7 * 1024 * 1024)})
-        self.assertEqual(response.status_code, 401)
+            "Content-Type": "multipart/form-data; boundary=test",
+            "Content-Length": str(7 * 1024 * 1024)})
+        self.assertEqual(response.status_code, 413)
         self.assertEqual(consumed, [])
         self.embed_mock.assert_not_called()
 
@@ -162,7 +155,7 @@ class APITests(unittest.TestCase):
                 def oversized_stream():
                     for _ in range(7):
                         yield b"x" * (1024 * 1024)
-                headers = {**self.headers, "Content-Type": "multipart/form-data; boundary=test"}
+                headers = {"Content-Type": "multipart/form-data; boundary=test"}
                 if explicit_length:
                     headers["Content-Length"] = str(7 * 1024 * 1024)
                 with patch("main.extract_pdf") as extractor:
@@ -176,7 +169,7 @@ class APITests(unittest.TestCase):
         origin = "https://docuchat-ai-frontend.onrender.com"
         response = self.client.options("/chat", headers={
             "Origin": origin, "Access-Control-Request-Method": "POST",
-            "Access-Control-Request-Headers": "content-type,x-demo-key"})
+            "Access-Control-Request-Headers": "content-type"})
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.headers.get("access-control-allow-origin"), origin)
         self.assertNotIn("access-control-allow-credentials", response.headers)
@@ -184,9 +177,9 @@ class APITests(unittest.TestCase):
             "Origin": "https://untrusted.example", "Access-Control-Request-Method": "POST"})
         self.assertEqual(denied.status_code, 400)
         self.assertNotIn("access-control-allow-origin", denied.headers)
-        denied_auth = self.client.get("/documents", headers={"Origin": origin})
-        self.assertEqual(denied_auth.status_code, 401)
-        self.assertEqual(denied_auth.headers.get("access-control-allow-origin"), origin)
+        library = self.client.get("/documents", headers={"Origin": origin})
+        self.assertEqual(library.status_code, 200)
+        self.assertEqual(library.headers.get("access-control-allow-origin"), origin)
 
     def test_pdf_validation_and_limits_before_embeddings(self):
         cases = [(b"hello", 400), (b"%PDF-malformed", 400),
@@ -207,8 +200,8 @@ class APITests(unittest.TestCase):
                                         ("question", "invalid", 422),
                                         ("question", "a" * 32, 404)):
                 with self.subTest(path=path, code=code):
-                    response = self.client.post(path, headers=self.headers,
-                                                json={field: value, "document_id": doc_id})
+                    response = self.client.post(path,
+                                json={field: value, "document_id": doc_id})
                     self.assertEqual(response.status_code, code, response.text)
         self.embed_mock.assert_not_called()
 
@@ -226,8 +219,8 @@ class APITests(unittest.TestCase):
     def test_busy_request_is_rejected_and_slot_survives(self):
         main.operation_lock.acquire()
         try:
-            response = self.client.post("/chat", headers=self.headers,
-                                        json={"message": "question", "document_id": "a" * 32})
+            response = self.client.post("/chat",
+                                json={"message": "question", "document_id": "a" * 32})
             self.assertEqual(response.status_code, 429)
         finally:
             main.operation_lock.release()
@@ -255,7 +248,7 @@ class APITests(unittest.TestCase):
         with patch.dict(os.environ, {"RENDER": "true", "QDRANT_URL": "", "QDRANT_API_KEY": ""}):
             os.environ.pop("VECTOR_STORE", None)
             get_store.cache_clear()
-            response = self.client.get("/documents", headers=self.headers)
+            response = self.client.get("/documents")
         self.assertEqual(response.status_code, 503)
 
 

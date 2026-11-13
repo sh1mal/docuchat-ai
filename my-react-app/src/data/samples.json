@@ -1,0 +1,26 @@
+[
+  {
+    "id": "handbook",
+    "title": "Employee handbook",
+    "filename": "sample-employee-handbook.pdf",
+    "question": "How many remote work days are allowed each week?",
+    "pages": 10,
+    "url": "/samples/sample-employee-handbook.pdf"
+  },
+  {
+    "id": "product",
+    "title": "Product specification",
+    "filename": "sample-product-specification.pdf",
+    "question": "What is the maximum CSV import size in TaskBoard Lite?",
+    "pages": 10,
+    "url": "/samples/sample-product-specification.pdf"
+  },
+  {
+    "id": "report",
+    "title": "Project report",
+    "filename": "sample-project-report.pdf",
+    "question": "What was the p95 response time after the search optimization?",
+    "pages": 10,
+    "url": "/samples/sample-project-report.pdf"
+  }
+]

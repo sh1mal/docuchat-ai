@@ -24,3 +24,11 @@ data/
 
 # macOS
 .DS_Store
+
+# Public synthetic samples and project documentation (not user uploads)
+!my-react-app/public/samples/*.pdf
+!my-react-app/src/data/
+!my-react-app/src/data/samples.json
+!output/pdf/DocuChat-Architecture-and-Study-Notes.pdf
+# Generated PDF review images
+tmp/
