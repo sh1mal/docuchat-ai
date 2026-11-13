@@ -1,15 +1,14 @@
-"""Small, shared-key-protected PDF RAG demo. No local ML model is loaded."""
+"""Small, public PDF RAG demo. No local ML model is loaded."""
 import json
 import os
 from pathlib import Path
-import secrets
 import subprocess
 import sys
 from threading import Lock
 from uuid import uuid4
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from starlette.responses import JSONResponse
@@ -24,20 +23,8 @@ app = FastAPI(title="DocuChat AI", version="2.0.0")
 operation_lock = Lock()
 
 
-def require_demo_access(x_demo_key: str | None = Header(default=None)):
-    expected = os.getenv("DOCUCHAT_DEMO_KEY", "")
-    # Fail closed everywhere; local development uses the same protection.
-    if not expected:
-        raise HTTPException(503, "Demo access not configured")
-    if not x_demo_key or not secrets.compare_digest(x_demo_key.encode(), expected.encode()):
-        raise HTTPException(401, "Demo access required")
-
-
-protected = [Depends(require_demo_access)]
-
-
-class AccessAndBodyLimit:
-    """Authenticate before multipart parsing and bound the entire incoming body."""
+class BodyLimit:
+    """Bound incoming bodies before multipart parsing and serialize mutations."""
     def __init__(self, app):
         self.app = app
 
@@ -48,12 +35,6 @@ class AccessAndBodyLimit:
         if path not in {"/upload", "/chat", "/search", "/documents"} and not path.startswith("/documents/"):
             return await self.app(scope, receive, send)
         headers = dict(scope["headers"])
-        try:
-            require_demo_access(headers.get(b"x-demo-key", b"").decode("utf-8"))
-        except (HTTPException, UnicodeDecodeError) as error:
-            status = error.status_code if isinstance(error, HTTPException) else 401
-            detail = error.detail if isinstance(error, HTTPException) else "Demo access required"
-            return await JSONResponse({"detail": detail}, status_code=status)(scope, receive, send)
         mutation = scope["method"] in {"POST", "DELETE"}
         if mutation and not operation_lock.acquire(blocking=False):
             return await JSONResponse({"detail": "Demo is busy. Please retry shortly."}, status_code=429)(scope, receive, send)
@@ -93,12 +74,12 @@ class AccessAndBodyLimit:
                 operation_lock.release()
 
 
-app.add_middleware(AccessAndBodyLimit)
+app.add_middleware(BodyLimit)
 origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
 origins += [v.strip().rstrip("/") for v in os.getenv("FRONTEND_ORIGIN", "").split(",") if v.strip()]
-# Add last so CORS headers also cover authentication and body-limit errors.
+# Add last so CORS headers also cover body-limit errors.
 app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=False,
-                   allow_methods=["GET", "POST", "DELETE"], allow_headers=["Content-Type", "X-Demo-Key"])
+                   allow_methods=["GET", "POST", "DELETE"], allow_headers=["Content-Type"])
 
 
 def chunk_text(text, chunk_size=120, overlap=20):
@@ -157,7 +138,7 @@ def retrieve_matches(question, document_id):
     return store.search(document_id, vector, limit=3)
 
 
-@app.post("/upload", dependencies=protected)
+@app.post("/upload")
 def upload_pdf(file: UploadFile = File(...)):
     try:
         pdf_bytes = file.file.read(5 * 1024 * 1024 + 1)
@@ -189,13 +170,13 @@ def upload_pdf(file: UploadFile = File(...)):
     return metadata
 
 
-@app.post("/search", dependencies=protected)
+@app.post("/search")
 def search(request: SearchRequest):
     matches = retrieve_matches(request.question, request.document_id)
     return {"filename": matches[0]["filename"] if matches else "", "matches": matches}
 
 
-@app.post("/chat", dependencies=protected)
+@app.post("/chat")
 def chat(request: ChatRequest):
     matches = retrieve_matches(request.message, request.document_id)
     if not matches:
@@ -204,7 +185,7 @@ def chat(request: ChatRequest):
     return cited_response(generate_answer(request.message.strip(), matches), matches)
 
 
-@app.get("/documents", dependencies=protected)
+@app.get("/documents")
 def list_documents():
     mode = os.getenv("VECTOR_STORE", "qdrant" if os.getenv("RENDER") == "true" else "sqlite").strip().lower()
     return {"documents": get_store().list_documents(), "storage": {
@@ -213,7 +194,7 @@ def list_documents():
                    if mode == "qdrant" else "Temporary demo storage: reupload PDFs after Render restarts.")}}
 
 
-@app.delete("/documents/{document_id}", dependencies=protected)
+@app.delete("/documents/{document_id}")
 def delete_document(document_id: str):
     if not get_store().delete_document(document_id):
         raise HTTPException(404, "Document not found")

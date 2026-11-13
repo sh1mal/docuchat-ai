@@ -23,18 +23,20 @@ Anyone with the demo key can upload, read and delete documents in this shared li
 
 ## Features
 
+- One document workspace at `/` (existing `/chat` links still work), with a responsive library sidebar, drag-and-drop upload and inline project details.
+
 - Upload multiple text PDFs and select a document to ask questions about it.
 - View and delete documents from a shared demo library.
 - Retrieve only chunks belonging to the selected document.
 - Display cited excerpts with page/chunk references alongside Markdown answers. Other retrieved excerpts are collapsed separately as “Other retrieved context.” Citation IDs/pages are checked against the retrieved results; this does not independently verify factual support.
-- Protect every data endpoint with a server-side shared demo key. The frontend keeps it in page memory only.
+- Open the shared library directly without a demo key or sign-in.
 - Store extracted text, metadata and 768-dimensional embeddings in Qdrant Cloud, outside Render's temporary filesystem.
 
 ## Architecture
 
 ```text
 React (Render static site)
-  └─ X-Demo-Key → FastAPI (Render Free, one worker)
+  └─ HTTPS → FastAPI (Render Free, one worker)
        ├─ pypdf subprocess → bounded text chunks
        ├─ Gemini embedding API → gemini-embedding-001 (768 dimensions)
        ├─ Qdrant Cloud → document metadata + chunk text + vectors
@@ -55,7 +57,7 @@ python -m pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Edit `backend/.env` privately: set `GEMINI_API_KEY`, a long random `DOCUCHAT_DEMO_KEY`, and Qdrant settings. Use `VECTOR_STORE=sqlite` only for a local experiment without a Qdrant account. Its file survives local restarts if retained, but **SQLite on Render Free is temporary and can be lost on restart, redeploy or spin-down**.
+Edit `backend/.env` privately: set `GEMINI_API_KEY` and Qdrant settings. Use `VECTOR_STORE=sqlite` only for a local experiment without a Qdrant account. Its file survives local restarts if retained, but **SQLite on Render Free is temporary and can be lost on restart, redeploy or spin-down**.
 
 ```bash
 uvicorn main:app --host 127.0.0.1 --port 8000 --workers 1
@@ -69,7 +71,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:5173/chat` and enter the demo key. Local API calls require the key too. A missing server key fails closed with 503; a wrong/missing client key returns 401. The public `/health` endpoint reports process liveness only.
+Open `http://localhost:5173/chat`. The shared document library loads automatically, without a key or sign-in. The `/health` endpoint reports process liveness only.
 
 ## Deploy the existing Render services
 
@@ -91,7 +93,7 @@ The offline suite tests real PDF extraction and SQLite lifecycles; Gemini and Qd
 
 ## API
 
-Every data request requires `X-Demo-Key: <private demo key>`.
+All endpoints are public; no demo key is required.
 
 | Method | Route | Purpose |
 | --- | --- | --- |
@@ -107,7 +109,7 @@ Every data request requires `X-Demo-Key: <private demo key>`.
 - One upload, search, chat or deletion at a time; other operations receive 429 and can be retried. Start exactly one worker.
 - Maximum 5 MB, 50 pages, 200,000 extracted characters and 250 chunks per PDF; 20 documents / 2,000 chunks for the shared library.
 - PDF extraction has a 25-second timeout and, on Linux, a 192 MB subprocess address-space cap. Complex PDFs may be rejected. Scanned PDFs need OCR first.
-- Everyone with the demo key shares the library and can read/delete its documents. This is not individual-user authentication. Use sample/public PDFs.
+- All visitors share the library and can upload, read, and delete its documents. Use sample/public PDFs.
 - Extracted text is sent to Google for embeddings/answers and stored in Qdrant when configured. Gemini free-tier input/output may be used to improve Google's products.
 - Retrieval can select irrelevant excerpts and Gemini may make mistakes. Expand the sources and verify answers. Displayed sources are retrieved context, not independently verified claims.
 - Render Free can sleep after 15 minutes idle and may take about a minute to wake. Qdrant free clusters can suspend after one week unused and be deleted after four weeks of inactivity.
@@ -116,3 +118,17 @@ Every data request requires `X-Demo-Key: <private demo key>`.
 Provider references: [Render Free](https://render.com/docs/free), [Qdrant free cluster](https://qdrant.tech/documentation/cloud/create-cluster/), [Gemini pricing](https://ai.google.dev/gemini-api/docs/pricing), [Gemini quotas](https://ai.google.dev/gemini-api/docs/rate-limits).
 
 Developed by [sh1mal](https://github.com/sh1mal).
+
+## Sample documents and study notes
+
+Three original fictional PDFs are available in the sidebar under Samples. Each has ten pages. Click a title to download it or Use to index it through the normal upload route. Existing same-name library entries are selected instead of uploaded again. Real Gemini access is required to index and answer questions; static downloads work independently of provider configuration.
+
+| Sample | Example question | Evidence page |
+| --- | --- | --- |
+| Employee handbook | How many remote work days are allowed each week? | 3 |
+| Product specification | What is the maximum CSV import size in TaskBoard Lite? | 6 |
+| Project report | What was the p95 response time after the search optimization? | 7 |
+
+The chat placeholder changes for the selected sample. Facts and performance figures inside these samples are fictional and are not DocuChat achievements.
+
+The code-grounded guide is `output/pdf/DocuChat-Architecture-and-Study-Notes.pdf`. Rebuild all four PDFs and their sample manifest with `scripts/build_project_pdfs.py` using a Python environment with `reportlab` and `pypdf`. These are authoring dependencies, not backend runtime dependencies.

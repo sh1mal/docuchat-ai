@@ -1,18 +1,66 @@
 :root {
-  font-family: Arial, sans-serif;
-  color: #f5f5f5;
-  background: #18181f;
+  color-scheme: light;
+  --on-accent: #ffffff;
+  --surface: #fff;
+  --sidebar: #f5f6f4;
+  --border: #e2e6df;
+  --text: #253128;
+  --secondary: #64705e;
+  --muted: #7b8575;
+  --accent: #3f6141;
+  --accent-hover: #2f4d30;
+  --accent-text: #30472f;
+  --hover: #eaf0e6;
+  --selected: #e7eee2;
+  --selected-border: #d4dfcd;
+  --soft: #edf0e9;
+  --upload-border: #b8c4b5;
+  --focus: #6d8963;
+  --scrollbar: #d0d8c9;
+  --danger: #a44736;
+  --danger-bg: #f4e6df;
+  --warning: #8c623d;
+  --warning-bg: #fff7ec;
+  --warning-border: #ebd3bd;
+  --selection: #d5e8bb;
+  --selection-text: #203128;
+  --shadow: #27341f12;
 }
-
-* {
-  box-sizing: border-box;
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface: #171c19;
+  --sidebar: #1d2420;
+  --border: #303b33;
+  --text: #e2e9e1;
+  --secondary: #b4c1b1;
+  --muted: #9baa96;
+  --accent: #52794a;
+  --accent-hover: #638e5a;
+  --accent-text: #a5ca94;
+  --hover: #2a382b;
+  --selected: #2c3e2b;
+  --selected-border: #435a3d;
+  --soft: #242f26;
+  --upload-border: #4b5d46;
+  --focus: #8eae7b;
+  --scrollbar: #46533e;
+  --danger: #e7a596;
+  --danger-bg: #432d29;
+  --warning: #e2c393;
+  --warning-bg: #352c1f;
+  --warning-border: #5c4a2e;
+  --selection: #4c6941;
+  --selection-text: #f2f6ef;
+  --shadow: #00000040;
 }
-
-body {
-  margin: 0;
-}
-
-#root {
-  width: 100%;
-  min-height: 100vh;
-}
+:root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--text); background: var(--surface); font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, input { font: inherit; }
+button, a, summary, label { -webkit-tap-highlight-color: transparent; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
+button { transition: background .16s, border-color .16s, color .16s; }
+::selection { background: var(--selection); color: var(--selection-text); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
