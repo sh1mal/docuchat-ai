@@ -135,6 +135,20 @@ class APITests(unittest.TestCase):
         self.assertTrue(result["other_context"])
         self.assertIn("removed", result["citation_warning"])
 
+    def test_chat_normalizes_grouped_references_into_visible_sources(self):
+        uploaded = self.upload().json()
+        self.answer_mock.side_effect = lambda question, matches: (
+            "Answer [" + ", ".join(f"Chunk {m['chunk']}, page {m['page']}" for m in matches) + "]")
+        response = self.client.post("/chat", json={
+            "message": "What is Alpha?", "document_id": uploaded["document_id"]})
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertTrue(result["sources"])
+        self.assertEqual(result["other_context"], [])
+        self.assertEqual(result["citation_warning"], "")
+        for source in result["sources"]:
+            self.assertIn(f"[Chunk {source['chunk']}, page {source['page']}]", result["reply"])
+
     def test_oversized_upload_is_rejected_before_body_is_read(self):
         consumed = []
 

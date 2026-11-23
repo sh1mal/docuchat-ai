@@ -2,7 +2,8 @@
 import re
 
 MARKER = re.compile(r"\[Chunk\b[^\]\n]*\]", re.IGNORECASE)
-REFERENCE = re.compile(r"\[Chunk\s+([0-9]+)(?:\s*,\s*page\s+([0-9]+))?\s*\]", re.IGNORECASE)
+REFERENCE = re.compile(r"Chunk\s+([0-9]+)(?:\s*,\s*page\s+([0-9]+))?\s*", re.IGNORECASE)
+SEPARATOR = re.compile(r"\s*(?:[,;]|\band\b)\s*(?=Chunk\b)", re.IGNORECASE)
 
 
 def cited_response(reply, matches):
@@ -13,8 +14,16 @@ def cited_response(reply, matches):
 
     def validate(marker):
         nonlocal invalid
-        reference = REFERENCE.fullmatch(marker.group())
-        if reference:
+        # Gemini sometimes puts several complete references in one bracket.
+        # Parse the entire marker before accepting any of it; never infer IDs
+        # from arbitrary text or promote uncited retrieval results to sources.
+        references = [REFERENCE.fullmatch(part.strip())
+                      for part in SEPARATOR.split(marker.group()[1:-1])]
+        if not all(references):
+            invalid = True
+            return ""
+        normalized = []
+        for reference in references:
             chunk_id = reference[1].lstrip("0") or "0"
             match = available.get(chunk_id)
             page = reference[2]
@@ -22,9 +31,10 @@ def cited_response(reply, matches):
                 if chunk_id not in seen:
                     seen.add(chunk_id)
                     cited.append(match)
-                return f"[Chunk {match['chunk']}, page {match['page']}]"
-        invalid = True
-        return ""
+                normalized.append(f"[Chunk {match['chunk']}, page {match['page']}]")
+            else:
+                invalid = True
+        return " ".join(normalized)
 
     reply = MARKER.sub(validate, reply).strip()
     warning = ""
