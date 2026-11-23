@@ -1,7 +1,7 @@
 """Validate citation identifiers against retrieved context, not factual support."""
 import re
 
-MARKER = re.compile(r"\[Chunk\b[^\]\n]*\]", re.IGNORECASE)
+MARKER = re.compile(r"\[Chunk\b[^\[\]]*\]", re.IGNORECASE)
 REFERENCE = re.compile(r"Chunk\s+([0-9]+)(?:\s*,\s*page\s+([0-9]+))?\s*", re.IGNORECASE)
 SEPARATOR = re.compile(r"\s*(?:[,;]|\band\b)\s*(?=Chunk\b)", re.IGNORECASE)
 

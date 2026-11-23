@@ -63,6 +63,16 @@ class CitationTests(unittest.TestCase):
                 self.assertEqual(result["sources"], self.matches[:2])
                 self.assertEqual(result["citation_warning"], "")
 
+    def test_live_wrapped_reference_is_not_silently_left_unverified(self):
+        result = cited_response("Answer [Chunk 5, page 2\n] [Chunk 1,\npage 1]", self.matches)
+        self.assertEqual(result["reply"], "Answer [Chunk 5, page 2] [Chunk 1, page 1]")
+        self.assertEqual(result["sources"], [self.matches[2], self.matches[0]])
+        self.assertEqual(result["citation_warning"], "")
+        invalid = cited_response("Answer [Chunk 99, page 2\n]", self.matches)
+        self.assertEqual(invalid["sources"], [])
+        self.assertEqual(invalid["reply"], "Answer")
+        self.assertIn("removed", invalid["citation_warning"])
+
     def test_grouped_citations_still_reject_wrong_pages_and_unknown_chunks(self):
         for invalid in ("Chunk 99, page 1", "Chunk 2, page 1", "Chunk 4, page 2"):
             with self.subTest(invalid=invalid):
